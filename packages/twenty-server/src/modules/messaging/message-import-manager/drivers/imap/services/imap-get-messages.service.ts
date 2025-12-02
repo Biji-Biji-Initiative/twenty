@@ -108,6 +108,7 @@ export class ImapGetMessagesService {
     this.logger.log(
       `Fetching ${messageUids.length} messages from ${folderPath}`,
     );
+    const startTime = Date.now();
 
     const results = await this.messageParser.parseMessagesFromFolder(
       messageUids,
@@ -144,7 +145,7 @@ export class ImapGetMessagesService {
     }
 
     this.logger.log(
-      `Parsed ${messages.length}/${results.length} messages from ${folderPath}`,
+      `Parsed ${messages.length}/${results.length} messages from ${folderPath} in ${Date.now() - startTime}ms`,
     );
 
     return messages;
