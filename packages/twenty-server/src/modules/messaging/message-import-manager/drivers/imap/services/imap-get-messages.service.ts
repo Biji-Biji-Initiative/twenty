@@ -6,10 +6,7 @@ import { type AddressObject, type ParsedMail } from 'mailparser';
 import { type ConnectedAccountWorkspaceEntity } from 'src/modules/connected-account/standard-objects/connected-account.workspace-entity';
 import { computeMessageDirection } from 'src/modules/messaging/message-import-manager/drivers/gmail/utils/compute-message-direction.util';
 import { ImapClientProvider } from 'src/modules/messaging/message-import-manager/drivers/imap/providers/imap-client.provider';
-import {
-  ImapMessageParserService,
-  type MessageParseResult,
-} from 'src/modules/messaging/message-import-manager/drivers/imap/services/imap-message-parser.service';
+import { ImapMessageParserService } from 'src/modules/messaging/message-import-manager/drivers/imap/services/imap-message-parser.service';
 import { ImapMessageTextExtractorService } from 'src/modules/messaging/message-import-manager/drivers/imap/services/imap-message-text-extractor.service';
 import { ImapMessagesImportErrorHandler } from 'src/modules/messaging/message-import-manager/drivers/imap/services/imap-messages-import-error-handler.service';
 import { parseMessageId } from 'src/modules/messaging/message-import-manager/drivers/imap/utils/parse-message-id.util';
@@ -111,65 +108,45 @@ export class ImapGetMessagesService {
       `Fetching ${messageUids.length} messages from ${folderPath}`,
     );
 
-    const messages: MessageWithParticipants[] = [];
-    let processedCount = 0;
-
-    for await (const result of this.messageParser.parseMessagesStream(
+    const results = await this.messageParser.parseMessagesFromFolder(
       messageUids,
       folderPath,
       client,
-    )) {
-      processedCount++;
+    );
 
-      const message = this.processParseResult(
-        result,
-        folderPath,
-        connectedAccount,
-      );
+    const messages: MessageWithParticipants[] = [];
 
-      if (message) {
-        messages.push(message);
+    for (const result of results) {
+      if (result.error) {
+        this.errorHandler.handleError(
+          result.error,
+          `${folderPath}:${result.uid}`,
+        );
+        continue;
       }
+
+      if (!result.parsed) {
+        this.logger.warn(
+          `Message UID ${result.uid} could not be parsed - likely deleted`,
+        );
+        continue;
+      }
+
+      messages.push(
+        this.buildMessage(
+          result.parsed,
+          result.uid,
+          folderPath,
+          connectedAccount,
+        ),
+      );
     }
 
     this.logger.log(
-      `Parsed ${messages.length}/${processedCount} messages from ${folderPath}`,
+      `Parsed ${messages.length}/${results.length} messages from ${folderPath}`,
     );
 
     return messages;
-  }
-
-  private processParseResult(
-    result: MessageParseResult,
-    folderPath: string,
-    connectedAccount: Pick<
-      ConnectedAccountWorkspaceEntity,
-      'handle' | 'handleAliases'
-    >,
-  ): MessageWithParticipants | undefined {
-    if (result.error) {
-      this.errorHandler.handleError(
-        result.error,
-        `${folderPath}:${result.uid}`,
-      );
-
-      return undefined;
-    }
-
-    if (!result.parsed) {
-      this.logger.warn(
-        `Message UID ${result.uid} could not be parsed - likely deleted`,
-      );
-
-      return undefined;
-    }
-
-    return this.buildMessage(
-      result.parsed,
-      result.uid,
-      folderPath,
-      connectedAccount,
-    );
   }
 
   private buildMessage(
