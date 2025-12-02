@@ -24,8 +24,6 @@ type ConnectedAccount = Pick<
   'id' | 'provider' | 'handle' | 'handleAliases' | 'connectionParameters'
 >;
 
-const BATCH_SIZE = 20;
-
 @Injectable()
 export class ImapGetMessagesService {
   private readonly logger = new Logger(ImapGetMessagesService.name);
@@ -110,40 +108,15 @@ export class ImapGetMessagesService {
     client: ImapFlow,
     connectedAccount: ConnectedAccount,
   ): Promise<MessageWithParticipants[]> {
-    const results: MessageParseResult[] = [];
-    const totalBatches = Math.ceil(messageUids.length / BATCH_SIZE);
-
     this.logger.log(
-      `Fetching ${messageUids.length} messages from ${folderPath} in ${totalBatches} batches`,
+      `Fetching ${messageUids.length} messages from ${folderPath}`,
     );
 
-    for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
-      const startIndex = batchIndex * BATCH_SIZE;
-      const batchUids = messageUids.slice(startIndex, startIndex + BATCH_SIZE);
-
-      try {
-        const batchResults = await this.messageParser.parseMessagesFromFolder(
-          batchUids,
-          folderPath,
-          client,
-        );
-
-        results.push(...batchResults);
-
-        this.logger.log(
-          `Batch ${batchIndex + 1}/${totalBatches}: fetched ${batchUids.length} messages`,
-        );
-      } catch (error) {
-        this.logger.error(`Batch ${batchIndex + 1} failed: ${error.message}`);
-
-        const errorResults = this.messageParser.createErrorResults(
-          batchUids,
-          error as Error,
-        );
-
-        results.push(...errorResults);
-      }
-    }
+    const results = await this.messageParser.parseMessagesFromFolder(
+      messageUids,
+      folderPath,
+      client,
+    );
 
     return this.buildMessages(results, folderPath, connectedAccount);
   }
