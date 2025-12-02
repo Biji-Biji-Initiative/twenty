@@ -3,8 +3,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { type ImapFlow } from 'imapflow';
 
 import {
-    MessageImportDriverException,
-    MessageImportDriverExceptionCode,
+  MessageImportDriverException,
+  MessageImportDriverExceptionCode,
 } from 'src/modules/messaging/message-import-manager/drivers/exceptions/message-import-driver.exception';
 import { type MailboxState } from 'src/modules/messaging/message-import-manager/drivers/imap/utils/extract-mailbox-state.util';
 import { type ImapSyncCursor } from 'src/modules/messaging/message-import-manager/drivers/imap/utils/parse-sync-cursor.util';
