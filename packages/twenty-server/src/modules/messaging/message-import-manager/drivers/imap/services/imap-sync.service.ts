@@ -111,13 +111,11 @@ export class ImapSyncService {
       return [];
     }
 
-    const uids: number[] = [];
     const uidRange = `${lastSyncedUid + 1}:${highestAvailableUid}`;
+    const uids = await client.search({ uid: uidRange }, { uid: true });
 
-    for await (const message of client.fetch(uidRange, {}, { uid: true })) {
-      if (message.uid) {
-        uids.push(message.uid);
-      }
+    if (!uids || !Array.isArray(uids)) {
+      return [];
     }
 
     return uids;
@@ -128,7 +126,7 @@ export class ImapSyncService {
     lastSyncedUid: number,
     lastModSeq: bigint,
   ): Promise<number[]> {
-    const searchResults = await client.search(
+    const uids = await client.search(
       {
         modseq: lastModSeq + BigInt(1),
         uid: `${lastSyncedUid + 1}:*`,
@@ -136,29 +134,11 @@ export class ImapSyncService {
       { uid: true },
     );
 
-    if (
-      !searchResults ||
-      !Array.isArray(searchResults) ||
-      !searchResults.length
-    ) {
+    if (!uids || !Array.isArray(uids) || !uids.length) {
       return [];
     }
 
-    this.logger.log(
-      `QRESYNC found ${searchResults.length} new/modified messages`,
-    );
-
-    const uids: number[] = [];
-
-    for await (const message of client.fetch(
-      searchResults,
-      {},
-      { uid: true },
-    )) {
-      if (message.uid) {
-        uids.push(message.uid);
-      }
-    }
+    this.logger.log(`QRESYNC found ${uids.length} new/modified messages`);
 
     return uids;
   }
