@@ -41,60 +41,27 @@ export class ImapGetMessageListService {
 
     try {
       client = await this.imapClientProvider.getClient(connectedAccount);
+
       const result: GetMessageListsResponse = [];
 
       for (const folder of messageFolders) {
-        this.logger.log(`Processing folder: ${folder.name}`);
+        const response = await this.getMessageList(client, folder);
 
-        const folderPath = folder.externalId?.split(':')[0];
-
-        if (!folderPath) {
-          this.logger.warn(`Folder ${folder.name} has no path. Skipping.`);
-          continue;
-        }
-
-        try {
-          const response = await this.getMessageList(
-            client,
-            folderPath,
-            folder,
-          );
-
-          result.push({
-            ...response,
-            folderId: folder.id,
-          });
-        } catch (error) {
-          this.logger.warn(
-            `Error fetching from folder ${folder.name}: ${error.message}. Continuing with other folders.`,
-          );
-
-          result.push({
-            messageExternalIds: [],
-            nextSyncCursor: folder.syncCursor || '',
-            previousSyncCursor: folder.syncCursor || '',
-            messageExternalIdsToDelete: [],
-            folderId: folder.id,
-          });
-        }
+        result.push({
+          ...response,
+          folderId: folder.id,
+        });
       }
 
       return result;
     } catch (error) {
       this.logger.error(
-        `Error getting message list: ${error.message}`,
-        error.stack,
+        `Connected account ${connectedAccount.id}: Error fetching message list: ${error.message}`,
       );
 
       this.imapMessageListFetchErrorHandler.handleError(error);
 
-      return messageFolders.map((folder) => ({
-        messageExternalIds: [],
-        nextSyncCursor: folder.syncCursor || '',
-        previousSyncCursor: folder.syncCursor || '',
-        messageExternalIdsToDelete: [],
-        folderId: folder.id,
-      }));
+      throw error;
     } finally {
       if (client) {
         await this.imapClientProvider.closeClient(client);
@@ -104,9 +71,20 @@ export class ImapGetMessageListService {
 
   public async getMessageList(
     client: ImapFlow,
-    folder: string,
-    messageFolder: Pick<MessageFolderWorkspaceEntity, 'syncCursor'>,
+    messageFolder: Pick<
+      MessageFolderWorkspaceEntity,
+      'name' | 'syncCursor' | 'externalId'
+    >,
   ): Promise<GetOneMessageListResponse> {
+    const folderPath = messageFolder.externalId?.split(':')[0];
+
+    if (!folderPath) {
+      throw new MessageImportDriverException(
+        `Folder ${messageFolder.name} has no path`,
+        MessageImportDriverExceptionCode.NOT_FOUND,
+      );
+    }
+
     if (!isDefined(messageFolder.syncCursor)) {
       throw new MessageImportDriverException(
         'Message folder sync cursor is required',
@@ -114,17 +92,27 @@ export class ImapGetMessageListService {
       );
     }
 
+    this.logger.log(`Processing folder: ${messageFolder.name}`);
+
     const { messages, messageExternalUidsToDelete, syncCursor } =
       await this.getMessagesFromFolder(
         client,
-        folder,
+        folderPath,
         messageFolder.syncCursor,
-      );
+      ).catch((error) => {
+        this.logger.error(
+          `Error fetching from folder ${messageFolder.name}: ${error.message}`,
+        );
+
+        this.imapMessageListFetchErrorHandler.handleError(error);
+
+        throw error;
+      });
 
     messages.sort((a, b) => b.uid - a.uid);
 
     const messageExternalIds = messages.map(
-      (message) => `${folder}:${message.uid.toString()}`,
+      (message) => `${folderPath}:${message.uid.toString()}`,
     );
 
     return {
@@ -141,20 +129,22 @@ export class ImapGetMessageListService {
   private async getMessagesFromFolder(
     client: ImapFlow,
     folder: string,
-    cursor?: string,
+    cursor: string,
   ): Promise<{
     messages: { uid: number }[];
     messageExternalUidsToDelete: number[];
     syncCursor: ImapSyncCursor;
   }> {
-    let lock;
+    const lock = await client.getMailboxLock(folder);
 
     try {
-      lock = await client.getMailboxLock(folder);
       const mailbox = client.mailbox!;
 
       if (typeof mailbox === 'boolean') {
-        throw new Error(`Invalid mailbox state for folder ${folder}`);
+        throw new MessageImportDriverException(
+          `Invalid mailbox state for folder ${folder}`,
+          MessageImportDriverExceptionCode.UNKNOWN,
+        );
       }
 
       const mailboxState = extractMailboxState(mailbox);
@@ -179,15 +169,8 @@ export class ImapGetMessageListService {
         messageExternalUidsToDelete,
         syncCursor: newSyncCursor,
       };
-    } catch (err) {
-      this.logger.error(
-        `Error fetching from folder ${folder}: ${err.message}`,
-        err.stack,
-      );
-
-      throw err;
     } finally {
-      if (lock) lock.release();
+      lock.release();
     }
   }
 }
