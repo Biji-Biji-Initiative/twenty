@@ -28,8 +28,6 @@ export class ImapMessageTextExtractorService {
     if (parsed.html) {
       const sanitizedHtml = this.purify.sanitize(parsed.html);
 
-      this.jsdomInstance.window.document.documentElement.innerHTML = `<html><body>${sanitizedHtml}</body></html>`;
-
       const cleanedHtml = planer.extractFromHtml(
         sanitizedHtml,
         this.jsdomInstance.window.document,
