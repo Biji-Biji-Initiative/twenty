@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 import { type ImapFlow } from 'imapflow';
-import { type AddressObject, type ParsedMail } from 'mailparser';
+import { AddressObject } from 'mailparser';
+import { type Email as ParsedMail } from 'postal-mime';
 
 import { type ConnectedAccountWorkspaceEntity } from 'src/modules/connected-account/standard-objects/connected-account.workspace-entity';
 import { computeMessageDirection } from 'src/modules/messaging/message-import-manager/drivers/gmail/utils/compute-message-direction.util';
@@ -173,7 +174,7 @@ export class ImapGetMessagesService {
       headerMessageId: parsed.messageId || String(uid),
       subject: sanitizeString(parsed.subject || ''),
       text,
-      receivedAt: parsed.date || new Date(),
+      receivedAt: parsed.date ? new Date(parsed.date) : null,
       direction: computeMessageDirection(senderAddress, connectedAccount),
       attachments: this.extractAttachments(parsed),
       participants: this.extractParticipants(parsed),

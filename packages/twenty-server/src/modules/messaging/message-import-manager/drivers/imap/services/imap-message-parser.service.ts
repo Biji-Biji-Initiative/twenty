@@ -1,11 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 import { type FetchMessageObject, type ImapFlow } from 'imapflow';
-import { type ParsedMail, simpleParser } from 'mailparser';
+import PostalMime, { type Email as ParsedEmail } from 'postal-mime';
 
 export type MessageParseResult = {
   uid: number;
-  parsed: ParsedMail | null;
+  parsed: ParsedEmail | null;
   error?: Error;
 };
 
@@ -70,12 +70,7 @@ export class ImapMessageParserService {
     }
 
     try {
-      const parsed = await simpleParser(source, {
-        skipTextToHtml: true,
-        skipImageLinks: true,
-        skipTextLinks: true,
-        keepCidLinks: false,
-      });
+      const parsed = await PostalMime.parse(source);
 
       return { uid, parsed };
     } catch (error) {
