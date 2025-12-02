@@ -2,7 +2,6 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import { type ImapFlow } from 'imapflow';
 import { type AddressObject, type ParsedMail } from 'mailparser';
-import { isDefined } from 'twenty-shared/utils';
 
 import { type ConnectedAccountWorkspaceEntity } from 'src/modules/connected-account/standard-objects/connected-account.workspace-entity';
 import { computeMessageDirection } from 'src/modules/messaging/message-import-manager/drivers/gmail/utils/compute-message-direction.util';
@@ -112,56 +111,65 @@ export class ImapGetMessagesService {
       `Fetching ${messageUids.length} messages from ${folderPath}`,
     );
 
-    const results = await this.messageParser.parseMessagesFromFolder(
+    const messages: MessageWithParticipants[] = [];
+    let processedCount = 0;
+
+    for await (const result of this.messageParser.parseMessagesStream(
       messageUids,
       folderPath,
       client,
+    )) {
+      processedCount++;
+
+      const message = this.processParseResult(
+        result,
+        folderPath,
+        connectedAccount,
+      );
+
+      if (message) {
+        messages.push(message);
+      }
+    }
+
+    this.logger.log(
+      `Parsed ${messages.length}/${processedCount} messages from ${folderPath}`,
     );
 
-    return this.buildMessages(results, folderPath, connectedAccount);
+    return messages;
   }
 
-  private buildMessages(
-    parseResults: MessageParseResult[],
+  private processParseResult(
+    result: MessageParseResult,
     folderPath: string,
     connectedAccount: Pick<
       ConnectedAccountWorkspaceEntity,
       'handle' | 'handleAliases'
     >,
-  ): MessageWithParticipants[] {
-    const messages = parseResults.map((result) => {
-      if (result.error) {
-        this.errorHandler.handleError(
-          result.error,
-          `${folderPath}:${result.uid}`,
-        );
-
-        return undefined;
-      }
-
-      if (!result.parsed) {
-        this.logger.warn(
-          `Message UID ${result.uid} could not be parsed - likely deleted`,
-        );
-
-        return undefined;
-      }
-
-      return this.buildMessage(
-        result.parsed,
-        result.uid,
-        folderPath,
-        connectedAccount,
+  ): MessageWithParticipants | undefined {
+    if (result.error) {
+      this.errorHandler.handleError(
+        result.error,
+        `${folderPath}:${result.uid}`,
       );
-    });
 
-    const validMessages = messages.filter(isDefined);
+      return undefined;
+    }
 
-    this.logger.log(
-      `Parsed ${validMessages.length}/${parseResults.length} messages from ${folderPath}`,
+    if (!result.parsed) {
+      this.logger.warn(
+        `Message UID ${result.uid} could not be parsed - likely deleted`,
+      );
+
+      return undefined;
+    }
+
+    return this.buildMessage(
+      result.parsed,
+      result.uid,
+      folderPath,
+      connectedAccount,
     );
-
-    return validMessages;
   }
 
   private buildMessage(

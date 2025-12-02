@@ -13,54 +13,67 @@ export type MessageParseResult = {
 export class ImapMessageParserService {
   private readonly logger = new Logger(ImapMessageParserService.name);
 
-  async parseMessagesFromFolder(
+  async *parseMessagesStream(
     messageUids: number[],
     folderPath: string,
     client: ImapFlow,
-  ): Promise<MessageParseResult[]> {
+  ): AsyncGenerator<MessageParseResult> {
     if (!messageUids.length) {
-      return [];
+      return;
     }
 
-    try {
-      const lock = await client.getMailboxLock(folderPath);
+    const lock = await client.getMailboxLock(folderPath);
 
-      try {
-        return await this.fetchAndParseMessages(messageUids, client);
-      } finally {
-        lock.release();
+    try {
+      const uidSet = messageUids.join(',');
+      const fetchedUids = new Set<number>();
+
+      const fetchStream = client.fetch(
+        uidSet,
+        { uid: true, source: true },
+        { uid: true },
+      );
+
+      for await (const message of fetchStream) {
+        fetchedUids.add(message.uid);
+
+        yield await this.parseMessage(message);
+      }
+
+      for (const uid of messageUids) {
+        if (!fetchedUids.has(uid)) {
+          yield { uid, parsed: null };
+        }
       }
     } catch (error) {
       this.logger.error(
         `Failed to parse messages from folder ${folderPath}: ${error.message}`,
       );
 
-      return this.createErrorResults(messageUids, error as Error);
+      for (const uid of messageUids) {
+        yield { uid, parsed: null, error: error as Error };
+      }
+    } finally {
+      lock.release();
     }
   }
 
-  private async fetchAndParseMessages(
+  async parseMessagesFromFolder(
     messageUids: number[],
+    folderPath: string,
     client: ImapFlow,
   ): Promise<MessageParseResult[]> {
-    const uidSet = messageUids.join(',');
-    const parsedByUid = new Map<number, MessageParseResult>();
+    const results: MessageParseResult[] = [];
 
-    const fetchStream = client.fetch(
-      uidSet,
-      { uid: true, source: true },
-      { uid: true },
-    );
-
-    for await (const message of fetchStream) {
-      const result = await this.parseMessage(message);
-
-      parsedByUid.set(message.uid, result);
+    for await (const result of this.parseMessagesStream(
+      messageUids,
+      folderPath,
+      client,
+    )) {
+      results.push(result);
     }
 
-    return messageUids.map(
-      (uid) => parsedByUid.get(uid) ?? { uid, parsed: null },
-    );
+    return results;
   }
 
   private async parseMessage(
