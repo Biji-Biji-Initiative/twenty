@@ -2,12 +2,15 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import { type ImapFlow } from 'imapflow';
 
+import {
+    MessageImportDriverException,
+    MessageImportDriverExceptionCode,
+} from 'src/modules/messaging/message-import-manager/drivers/exceptions/message-import-driver.exception';
 import { type MailboxState } from 'src/modules/messaging/message-import-manager/drivers/imap/utils/extract-mailbox-state.util';
 import { type ImapSyncCursor } from 'src/modules/messaging/message-import-manager/drivers/imap/utils/parse-sync-cursor.util';
 
 type SyncResult = {
   messageUids: number[];
-  deletedMessageUids: number[];
 };
 
 @Injectable()
@@ -20,12 +23,7 @@ export class ImapSyncService {
     previousCursor: ImapSyncCursor | null,
     mailboxState: MailboxState,
   ): Promise<SyncResult> {
-    const deletedMessageUids = this.getDeletedUidsOnValidityChange(
-      previousCursor,
-      mailboxState,
-      folderPath,
-      client,
-    );
+    this.validateUidValidity(previousCursor, mailboxState, folderPath);
 
     const messageUids = await this.fetchNewMessageUids(
       client,
@@ -34,30 +32,27 @@ export class ImapSyncService {
       folderPath,
     );
 
-    return {
-      messageUids,
-      deletedMessageUids: await deletedMessageUids,
-    };
+    return { messageUids };
   }
 
-  private async getDeletedUidsOnValidityChange(
+  private validateUidValidity(
     previousCursor: ImapSyncCursor | null,
     mailboxState: MailboxState,
     folderPath: string,
-    client: ImapFlow,
-  ): Promise<number[]> {
+  ): void {
     const previousUidValidity = previousCursor?.uidValidity ?? 0;
     const { uidValidity } = mailboxState;
 
     if (previousUidValidity !== 0 && previousUidValidity !== uidValidity) {
-      this.logger.log(
+      this.logger.warn(
         `UID validity changed from ${previousUidValidity} to ${uidValidity} in ${folderPath}. Full resync required.`,
       );
 
-      return this.fetchAllMessageUids(client);
+      throw new MessageImportDriverException(
+        `IMAP UID validity changed for folder ${folderPath}`,
+        MessageImportDriverExceptionCode.SYNC_CURSOR_ERROR,
+      );
     }
-
-    return [];
   }
 
   private async fetchNewMessageUids(
@@ -105,18 +100,6 @@ export class ImapSyncService {
     return (
       supportsQresync && hasModSeq && hasServerModSeq && uidValidityMatches
     );
-  }
-
-  private async fetchAllMessageUids(client: ImapFlow): Promise<number[]> {
-    const uids: number[] = [];
-
-    for await (const message of client.fetch('1:*', {}, { uid: true })) {
-      if (message.uid) {
-        uids.push(message.uid);
-      }
-    }
-
-    return uids;
   }
 
   private async fetchWithUidRange(

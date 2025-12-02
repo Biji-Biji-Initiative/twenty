@@ -91,13 +91,12 @@ export class ImapGetMessageListService {
       const mailboxState = extractMailboxState(mailbox);
       const previousCursor = parseSyncCursor(folder.syncCursor);
 
-      const { messageUids, deletedMessageUids } =
-        await this.imapSyncService.syncFolder(
-          client,
-          folderPath,
-          previousCursor,
-          mailboxState,
-        );
+      const { messageUids } = await this.imapSyncService.syncFolder(
+        client,
+        folderPath,
+        previousCursor,
+        mailboxState,
+      );
 
       const nextCursor = createSyncCursor(
         messageUids.map((uid) => ({ uid })),
@@ -109,13 +108,9 @@ export class ImapGetMessageListService {
         .sort((a, b) => b - a)
         .map((uid) => `${folderPath}:${uid}`);
 
-      const messageExternalIdsToDelete = deletedMessageUids.map(
-        (uid) => `${folderPath}:${uid}`,
-      );
-
       return {
         messageExternalIds,
-        messageExternalIdsToDelete,
+        messageExternalIdsToDelete: [],
         nextSyncCursor: JSON.stringify(nextCursor),
         previousSyncCursor: folder.syncCursor,
         folderId: folder.id,
