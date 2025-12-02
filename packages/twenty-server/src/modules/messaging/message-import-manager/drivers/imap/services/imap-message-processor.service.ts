@@ -164,10 +164,7 @@ export class ImapMessageProcessorService {
     };
   }
 
-  createErrorResults(
-    uids: number[],
-    error: Error,
-  ): MessageFetchResult[] {
+  createErrorResults(uids: number[], error: Error): MessageFetchResult[] {
     return uids.map((uid) => {
       this.logger.error(`Failed to fetch message UID ${uid}: ${error.message}`);
 
