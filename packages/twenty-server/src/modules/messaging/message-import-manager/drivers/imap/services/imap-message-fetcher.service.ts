@@ -24,43 +24,17 @@ export class ImapMessageFetcherService {
     maxUid: number,
   ): Promise<{ uid: number }[]> {
     try {
-      let allUids = await client.search({ all: true }, { uid: true });
-
-      if (!Array.isArray(allUids)) allUids = [];
-
-      const wantedUids = allUids.filter((u) => u > lastSeenUid && u <= maxUid);
-
-      if (wantedUids.length === 0) {
-        this.logger.log(
-          `No new messages. lastSeenUid=${lastSeenUid}, maxUid=${maxUid}`,
-        );
-
-        return [];
-      }
-
       const messages: { uid: number }[] = [];
 
-      this.logger.log(
-        `Fetching ${wantedUids.length} messages, UIDs ${wantedUids[0]}..${
-          wantedUids[wantedUids.length - 1]
-        }`,
-      );
-
-      for await (const msg of client.fetch(
-        wantedUids,
-        {},
-        {
-          uid: true,
-        },
-      )) {
-        if (msg.uid) {
+      for await (const msg of client.fetch('1:*', {}, { uid: true })) {
+        if (msg.uid && msg.uid > lastSeenUid && msg.uid <= maxUid) {
           messages.push({ uid: msg.uid });
         }
       }
 
       return messages;
     } catch (err) {
-      this.logger.error(`Error with UID search: ${err.message}`);
+      this.logger.error(`Error fetching messages: ${err.message}`);
       throw err;
     }
   }
