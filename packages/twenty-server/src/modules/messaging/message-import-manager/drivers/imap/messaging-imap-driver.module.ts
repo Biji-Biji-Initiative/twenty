@@ -20,7 +20,6 @@ import { ImapMessageListFetchErrorHandler } from 'src/modules/messaging/message-
 import { ImapMessageProcessorService } from 'src/modules/messaging/message-import-manager/drivers/imap/services/imap-message-processor.service';
 import { ImapMessagesImportErrorHandler } from 'src/modules/messaging/message-import-manager/drivers/imap/services/imap-messages-import-error-handler.service';
 import { ImapMessageTextExtractorService } from 'src/modules/messaging/message-import-manager/drivers/imap/services/imap-message-text-extractor.service';
-import { ImapNetworkErrorHandler } from 'src/modules/messaging/message-import-manager/drivers/imap/services/imap-network-error-handler.service';
 import { MessageParticipantManagerModule } from 'src/modules/messaging/message-participant-manager/message-participant-manager.module';
 
 @Module({
@@ -39,7 +38,6 @@ import { MessageParticipantManagerModule } from 'src/modules/messaging/message-p
     ImapFetchByBatchService,
     ImapGetMessagesService,
     ImapGetMessageListService,
-    ImapNetworkErrorHandler,
     ImapMessageListFetchErrorHandler,
     ImapMessagesImportErrorHandler,
     ImapIncrementalSyncService,
