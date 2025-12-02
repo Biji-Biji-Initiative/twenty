@@ -14,6 +14,7 @@ import { GoogleAPIsAuthController } from 'src/engine/core-modules/auth/controlle
 import { GoogleAuthController } from 'src/engine/core-modules/auth/controllers/google-auth.controller';
 import { MicrosoftAPIsAuthController } from 'src/engine/core-modules/auth/controllers/microsoft-apis-auth.controller';
 import { MicrosoftAuthController } from 'src/engine/core-modules/auth/controllers/microsoft-auth.controller';
+import { ProxyHeaderAuthController } from 'src/engine/core-modules/auth/controllers/proxy-header-auth.controller';
 import { SSOAuthController } from 'src/engine/core-modules/auth/controllers/sso-auth.controller';
 import { AuthSsoService } from 'src/engine/core-modules/auth/services/auth-sso.service';
 import { CreateCalendarChannelService } from 'src/engine/core-modules/auth/services/create-calendar-channel.service';
@@ -72,6 +73,7 @@ import { AuthResolver } from './auth.resolver';
 
 import { AuthService } from './services/auth.service';
 import { JwtAuthStrategy } from './strategies/jwt.auth.strategy';
+import { ProxyHeaderAuthStrategy } from './strategies/proxy-header.auth.strategy';
 
 @Module({
   imports: [
@@ -124,12 +126,14 @@ import { JwtAuthStrategy } from './strategies/jwt.auth.strategy';
     GoogleAPIsAuthController,
     MicrosoftAPIsAuthController,
     SSOAuthController,
+    ProxyHeaderAuthController,
   ],
   providers: [
     SignInUpService,
     AuthService,
     JwtAuthStrategy,
     SamlAuthStrategy,
+    ProxyHeaderAuthStrategy,
     AuthResolver,
     GoogleAPIsService,
     GoogleAPIScopesService,

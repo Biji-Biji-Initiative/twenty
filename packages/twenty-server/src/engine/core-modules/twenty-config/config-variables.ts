@@ -1378,6 +1378,31 @@ export class ConfigVariables {
   })
   @IsOptional()
   AWS_SES_ACCOUNT_ID: string;
+
+  // Proxy Header Authentication (for reverse proxy SSO like Authentik, oauth2-proxy)
+  @ConfigVariablesMetadata({
+    group: ConfigVariablesGroup.OTHER,
+    description: 'Enable authentication via trusted proxy headers (X-authentik-email, etc.)',
+    type: ConfigVariableType.BOOLEAN,
+  })
+  @IsOptional()
+  AUTH_PROXY_HEADER_ENABLED = false;
+
+  @ConfigVariablesMetadata({
+    group: ConfigVariablesGroup.OTHER,
+    description: 'Automatically create users when authenticated via proxy headers',
+    type: ConfigVariableType.BOOLEAN,
+  })
+  @IsOptional()
+  AUTH_PROXY_HEADER_AUTO_CREATE_USER = true;
+
+  @ConfigVariablesMetadata({
+    group: ConfigVariablesGroup.OTHER,
+    description: 'Default workspace ID to assign proxy-authenticated users to',
+    type: ConfigVariableType.STRING,
+  })
+  @IsOptional()
+  AUTH_PROXY_HEADER_DEFAULT_WORKSPACE_ID?: string;
 }
 
 export const validate = (config: Record<string, unknown>): ConfigVariables => {
