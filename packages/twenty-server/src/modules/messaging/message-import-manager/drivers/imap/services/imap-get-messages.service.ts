@@ -7,6 +7,7 @@ import { type ConnectedAccountWorkspaceEntity } from 'src/modules/connected-acco
 import { computeMessageDirection } from 'src/modules/messaging/message-import-manager/drivers/gmail/utils/compute-message-direction.util';
 import { ImapFetchByBatchService } from 'src/modules/messaging/message-import-manager/drivers/imap/services/imap-fetch-by-batch.service';
 import { type MessageFetchResult } from 'src/modules/messaging/message-import-manager/drivers/imap/services/imap-message-processor.service';
+import { ImapMessagesImportErrorHandler } from 'src/modules/messaging/message-import-manager/drivers/imap/services/imap-messages-import-error-handler.service';
 import { ImapMessageTextExtractorService } from 'src/modules/messaging/message-import-manager/drivers/imap/services/imap-message-text-extractor.service';
 import { parseMessageId } from 'src/modules/messaging/message-import-manager/drivers/imap/utils/parse-message-id.util';
 import { type EmailAddress } from 'src/modules/messaging/message-import-manager/types/email-address';
@@ -28,6 +29,7 @@ export class ImapGetMessagesService {
   constructor(
     private readonly fetchByBatchService: ImapFetchByBatchService,
     private readonly messageTextExtractor: ImapMessageTextExtractorService,
+    private readonly imapMessagesImportErrorHandler: ImapMessagesImportErrorHandler,
   ) {}
 
   async getMessages(
@@ -98,6 +100,15 @@ export class ImapGetMessagesService {
     folder: string,
   ): MessageWithParticipants[] {
     const messages = batchResults.map((result) => {
+      if (result.error) {
+        this.imapMessagesImportErrorHandler.handleError(
+          result.error,
+          `${folder}:${result.uid}`,
+        );
+
+        return undefined;
+      }
+
       if (!result.parsed) {
         this.logger.warn(
           `Message UID ${result.uid} could not be parsed - likely not found in current folders`,

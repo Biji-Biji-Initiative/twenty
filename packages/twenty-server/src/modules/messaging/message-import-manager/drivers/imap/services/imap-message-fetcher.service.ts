@@ -7,21 +7,15 @@ export class ImapMessageFetcherService {
   private readonly logger = new Logger(ImapMessageFetcherService.name);
 
   public async getAllMessageUids(client: ImapFlow): Promise<number[]> {
-    try {
-      const uids: number[] = [];
+    const uids: number[] = [];
 
-      for await (const msg of client.fetch('1:*', {}, { uid: true })) {
-        if (msg.uid) {
-          uids.push(msg.uid);
-        }
+    for await (const msg of client.fetch('1:*', {}, { uid: true })) {
+      if (msg.uid) {
+        uids.push(msg.uid);
       }
-
-      return uids;
-    } catch (err) {
-      this.logger.error(`Error getting all message UIDs: ${err.message}`);
-
-      return [];
     }
+
+    return uids;
   }
 
   public async getMessagesWithUidSearch(

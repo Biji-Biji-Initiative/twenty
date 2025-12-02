@@ -64,7 +64,6 @@ export class ImapFetchByBatchService {
           const errorResults =
             this.imapMessageProcessorService.createErrorResults(
               batchUids,
-              folder,
               error as Error,
             );
 
