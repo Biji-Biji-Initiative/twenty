@@ -1,8 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 import { type ImapFlow } from 'imapflow';
-import { AddressObject } from 'mailparser';
-import { type Email as ParsedMail } from 'postal-mime';
+import { Address, type Email as ParsedMail } from 'postal-mime';
 
 import { type ConnectedAccountWorkspaceEntity } from 'src/modules/connected-account/standard-objects/connected-account.workspace-entity';
 import { computeMessageDirection } from 'src/modules/messaging/message-import-manager/drivers/gmail/utils/compute-message-direction.util';
@@ -44,11 +43,15 @@ export class ImapGetMessagesService {
     const client = await this.imapClientProvider.getClient(connectedAccount);
 
     try {
-      return await this.fetchFromAllFolders(
+      const messages = await this.fetchFromAllFolders(
         messagesByFolder,
         client,
         connectedAccount,
       );
+
+      this.logger.log(`First message: ${JSON.stringify(messages[0], null, 2)}`);
+
+      return messages;
     } finally {
       await this.imapClientProvider.closeClient(client);
     }
@@ -160,9 +163,7 @@ export class ImapGetMessagesService {
       'handle' | 'handleAliases'
     >,
   ): MessageWithParticipants {
-    const fromAddresses = this.extractAddresses(
-      parsed.from as AddressObject | undefined,
-    );
+    const fromAddresses = this.extractAddresses(parsed.from);
     const senderAddress = fromAddresses[0]?.address ?? '';
 
     const text = sanitizeString(
@@ -211,25 +212,28 @@ export class ImapGetMessagesService {
     ];
 
     return addressFields.flatMap(({ field, role }) =>
-      formatAddressObjectAsParticipants(
-        this.extractAddresses(field as AddressObject | undefined),
-        role,
-      ),
+      formatAddressObjectAsParticipants(this.extractAddresses(field), role),
     );
   }
 
   private extractAddresses(
-    addressObject: AddressObject | undefined,
+    address: Address | Address[] | undefined,
   ): EmailAddress[] {
-    if (!addressObject?.value) {
+    if (!address) {
       return [];
     }
 
-    return addressObject.value
-      .filter((addr) => addr.address)
-      .map((addr) => ({
-        address: addr.address!,
-        name: sanitizeString(addr.name),
+    const addresses = Array.isArray(address) ? address : [address];
+
+    const mailboxes = addresses.flatMap((addr) =>
+      addr.address ? [addr] : (addr.group ?? []),
+    );
+
+    return mailboxes
+      .filter((mailbox) => mailbox.address)
+      .map((mailbox) => ({
+        address: mailbox.address,
+        name: sanitizeString(mailbox.name || ''),
       }));
   }
 
