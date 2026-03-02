@@ -6,7 +6,7 @@ Fork of [Twenty CRM](https://github.com/twentyhq/twenty) with Biji-Biji customiz
 ## Upstream Sync
 - Upstream: https://github.com/twentyhq/twenty
 - Sync frequency: Monthly
-- Last sync: {UPDATE_THIS}
+- Last sync: 2026-03-02
 
 ## Custom Modifications
 - Custom data models for Biji-Biji use cases
