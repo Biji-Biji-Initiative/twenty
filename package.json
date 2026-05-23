@@ -58,7 +58,7 @@
     "tslib": "^2.8.1",
     "type-fest": "4.10.1",
     "typescript": "5.9.2",
-    "uuid": "^9.0.0",
+    "uuid": "^14.0.0",
     "vite-tsconfig-paths": "^4.2.1",
     "xlsx-ugnis": "^0.19.3",
     "zod": "^4.1.11"
