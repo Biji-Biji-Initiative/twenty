@@ -160,7 +160,7 @@
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.1",
     "semver": "7.6.3",
-    "sharp": "0.32.6",
+    "sharp": "0.35.0",
     "stripe": "17.3.1",
     "transliteration": "2.3.5",
     "tsconfig-paths": "^4.2.0",
